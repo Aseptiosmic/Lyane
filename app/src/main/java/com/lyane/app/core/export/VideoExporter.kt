@@ -63,14 +63,30 @@ class VideoExporter(private val context: Context) {
         val canvas = Canvas(bitmap)
 
         try {
+            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+
+            // bitmapToYuv420() below writes a tightly-packed NV12 buffer (Y plane, then
+            // interleaved U/V). COLOR_FormatYUV420Flexible has no single fixed byte-buffer
+            // layout and is meant for Image-based codec access, not raw ByteBuffer.put() —
+            // requesting it here while feeding NV12 bytes risks garbled or crashing encodes on
+            // real hardware. Query the encoder's actually supported formats and prefer
+            // COLOR_FormatYUV420SemiPlanar (NV12), which matches what we produce.
+            val supportedColorFormats = encoder.codecInfo
+                .getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                .colorFormats
+            val colorFormat = if (supportedColorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar)) {
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar
+            } else {
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible
+            }
+
             val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
+                setInteger(MediaFormat.KEY_COLOR_FORMAT, colorFormat)
                 setInteger(MediaFormat.KEY_BIT_RATE, exportConfig.bitrateMbps * 1024 * 1024)
                 setInteger(MediaFormat.KEY_FRAME_RATE, fps)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
             }
 
-            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             encoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             encoder.start()
 
@@ -113,8 +129,17 @@ class VideoExporter(private val context: Context) {
                 // Convert Bitmap to NV21/YUV420
                 bitmapToYuv420(bitmap, yuvBuffer, width, height)
 
-                // Send to MediaCodec input buffer
-                val inputIndex = encoder.dequeueInputBuffer(10_000)
+                // Send to MediaCodec input buffer. If the encoder has no free input buffer
+                // right away (it's briefly busy encoding/draining), retry for a bounded time
+                // instead of silently dropping this frame — previously a single -1 result here
+                // meant the rendered frame was discarded with no retry, causing dropped/desynced
+                // frames under load.
+                var inputIndex = -1
+                var waitedUs = 0L
+                while (inputIndex < 0 && waitedUs < 2_000_000L) {
+                    inputIndex = encoder.dequeueInputBuffer(10_000)
+                    if (inputIndex < 0) waitedUs += 10_000L
+                }
                 if (inputIndex >= 0) {
                     val inputBuffer = encoder.getInputBuffer(inputIndex)
                     inputBuffer?.clear()
@@ -162,12 +187,11 @@ class VideoExporter(private val context: Context) {
                 encoder.queueInputBuffer(inputIndex, 0, 0, durationUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
             }
 
-            // Drain remaining
+            // Drain remaining. The buffer carrying BUFFER_FLAG_END_OF_STREAM can itself still
+            // contain the last valid encoded frame — write it before breaking, otherwise the
+            // final frame of every exported video is silently dropped.
             var outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10_000)
             while (outputIndex >= 0) {
-                if (bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
-                    break
-                }
                 if (bufferInfo.size != 0 && muxerStarted) {
                     val encodedData = encoder.getOutputBuffer(outputIndex)
                     if (encodedData != null) {
@@ -176,7 +200,9 @@ class VideoExporter(private val context: Context) {
                         muxer.writeSampleData(videoTrackIndex, encodedData, bufferInfo)
                     }
                 }
+                val isEos = bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                 encoder.releaseOutputBuffer(outputIndex, false)
+                if (isEos) break
                 outputIndex = encoder.dequeueOutputBuffer(bufferInfo, 10_000)
             }
 

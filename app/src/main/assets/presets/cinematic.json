@@ -20,13 +20,13 @@
     "turbulence": 0.4
   },
   "lighting": {
-    "ambientColor": "#110903",
+    "ambientColorHex": "#110903",
     "bloomIntensity": 1.5,
     "noteGlow": 1.4,
     "spotlightIntensity": 1.2
   },
   "colors": {
-    "palette": "SUNSET",
+    "paletteType": "SUNSET",
     "glowIntensity": 1.4,
     "gradientSpeed": 0.3
   }

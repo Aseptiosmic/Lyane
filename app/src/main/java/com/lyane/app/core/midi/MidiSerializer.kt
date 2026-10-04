@@ -45,8 +45,12 @@ class MidiSerializer {
             writeVarLen(nameBytes.size.toLong(), trackBytes)
             trackBytes.write(nameBytes)
 
-            // Set Tempo Meta Event (track 0)
-            if (track.index == 0) {
+            // Set Tempo Meta Event — written into the first track actually present in the
+            // output file. Using `track.index == 0` here was unreliable: MidiParser only keeps
+            // tracks that contain notes, so an imported file's original empty "conductor" track
+            // (index 0, tempo-only) is routinely dropped, meaning no track would ever match
+            // `index == 0` and the tempo would silently be omitted from re-exported files.
+            if (track === sequence.tracks.firstOrNull()) {
                 writeVarLen(0L, trackBytes)
                 trackBytes.write(0xFF)
                 trackBytes.write(0x51)

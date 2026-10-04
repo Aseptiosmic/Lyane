@@ -20,13 +20,13 @@
     "turbulence": 0.0
   },
   "lighting": {
-    "ambientColor": "#000000",
+    "ambientColorHex": "#000000",
     "bloomIntensity": 0.3,
     "noteGlow": 0.4,
     "spotlightIntensity": 0.5
   },
   "colors": {
-    "palette": "MONOCHROME",
+    "paletteType": "MONOCHROME",
     "glowIntensity": 0.6,
     "gradientSpeed": 0.0
   }

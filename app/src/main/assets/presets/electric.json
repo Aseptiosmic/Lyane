@@ -20,13 +20,13 @@
     "turbulence": 1.2
   },
   "lighting": {
-    "ambientColor": "#030814",
+    "ambientColorHex": "#030814",
     "bloomIntensity": 2.0,
     "noteGlow": 2.2,
     "spotlightIntensity": 1.5
   },
   "colors": {
-    "palette": "NEON",
+    "paletteType": "NEON",
     "glowIntensity": 2.0,
     "gradientSpeed": 2.0
   }

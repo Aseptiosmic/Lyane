@@ -3,6 +3,7 @@ package com.lyane.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -24,8 +25,9 @@ fun TimelineScreen(
     val sequence by viewModel.currentSequence.collectAsState()
     val positionUs by viewModel.positionUs.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
-
-    var backgroundOpacity by remember { mutableStateOf(0.7f) }
+    // Collected purely to force recomposition when a track's mute/solo state is toggled
+    // in place (see MainViewModel.bumpEditVersion()).
+    val editVersion by viewModel.editVersion.collectAsState()
 
     Column(
         modifier = Modifier
@@ -49,36 +51,53 @@ fun TimelineScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
+        val tracks = sequence?.tracks.orEmpty()
+
         // Tracks List
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Track 1: MIDI Notes
             item {
+                Text("MIDI Tracks (${tracks.size})", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            if (tracks.isEmpty()) {
+                item {
+                    Text("No sequence loaded.", style = MaterialTheme.typography.bodySmall, color = TextMuted)
+                }
+            }
+
+            items(tracks) { track ->
+                val trackIndex = tracks.indexOf(track)
                 TrackLayerCard(
-                    title = "MIDI Performance Layer",
-                    subtitle = "${sequence?.tracks?.size ?: 1} Tracks • ${sequence?.totalNoteCount ?: 0} Notes",
+                    title = track.name,
+                    subtitle = "${track.noteCount} Notes • ${track.instrumentName}",
                     icon = Icons.Default.MusicNote,
                     accentColor = LyaneCyan,
-                    isMuted = false,
-                    onToggleMute = {}
+                    isMuted = track.isMuted,
+                    isSolo = track.isSolo,
+                    onToggleMute = { viewModel.toggleTrackMute(trackIndex) },
+                    onToggleSolo = { viewModel.toggleTrackSolo(trackIndex) }
                 )
             }
 
-            // Track 2: Audio Track Sync
+            // External Audio Layer — disclosed as not yet available rather than faked:
+            // AudioPlayerSync exists in the engine but is not wired to project loading/UI yet.
             item {
-                TrackLayerCard(
+                Spacer(modifier = Modifier.height(8.dp))
+                UnavailableLayerCard(
                     title = "External Audio Layer",
-                    subtitle = "Acoustic Piano Synthesizer / Audio Sync",
+                    subtitle = "Sync an external backing-track recording to the MIDI — coming in a future update",
                     icon = Icons.Default.Audiotrack,
-                    accentColor = LyanePurple,
-                    isMuted = false,
-                    onToggleMute = {}
+                    accentColor = LyanePurple
                 )
             }
 
-            // Track 3: Camera / Video Background Overlay
+            // Camera / Video Background Overlay — disclosed as not yet available: there is no
+            // live camera feed implemented yet to blend behind the falling notes, so the control
+            // is shown disabled instead of silently doing nothing.
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -88,19 +107,28 @@ fun TimelineScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = LyaneAurora)
+                            Icon(Icons.Default.CameraAlt, contentDescription = null, tint = TextMuted)
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text("Camera / Video Background Overlay", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                                Text("Blend real piano hands with falling notes", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                Text("Blend real piano hands with falling notes — not available in this version", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                            }
+                            Surface(color = LyaneBorder, shape = RoundedCornerShape(6.dp)) {
+                                Text(
+                                    "SOON",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = TextMuted,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Background Opacity: ${(backgroundOpacity * 100).toInt()}%", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                        Text("Background Opacity", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         Slider(
-                            value = backgroundOpacity,
-                            onValueChange = { backgroundOpacity = it },
-                            colors = SliderDefaults.colors(thumbColor = LyaneAurora, activeTrackColor = LyaneAurora)
+                            value = 0f,
+                            onValueChange = {},
+                            enabled = false,
+                            colors = SliderDefaults.colors(disabledThumbColor = TextMuted, disabledActiveTrackColor = TextMuted)
                         )
                     }
                 }
@@ -126,7 +154,57 @@ fun TrackLayerCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     accentColor: Color,
     isMuted: Boolean,
-    onToggleMute: () -> Unit
+    isSolo: Boolean,
+    onToggleMute: () -> Unit,
+    onToggleSolo: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = LyaneDarkSurface,
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isSolo) LyaneAurora else LyaneBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = if (isMuted) TextMuted else accentColor)
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.titleMedium, color = if (isMuted) TextMuted else TextPrimary)
+                Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+
+            FilterChip(
+                selected = isSolo,
+                onClick = onToggleSolo,
+                label = { Text("S") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = LyaneAurora,
+                    selectedLabelColor = LyaneBlack
+                )
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            FilterChip(
+                selected = isMuted,
+                onClick = onToggleMute,
+                label = { Text("M") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0xFFF87171),
+                    selectedLabelColor = LyaneBlack
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun UnavailableLayerCard(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    accentColor: Color
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -138,11 +216,19 @@ fun TrackLayerCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = accentColor)
+            Icon(icon, contentDescription = null, tint = TextMuted)
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                 Text(text = subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+            }
+            Surface(color = LyaneBorder, shape = RoundedCornerShape(6.dp)) {
+                Text(
+                    "SOON",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextMuted,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
         }
     }

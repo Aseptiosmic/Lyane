@@ -143,22 +143,77 @@ class KeyboardRenderer {
         }
     }
 
-    /**
-     * Maps pitch to normalized X coordinate (-1.0 to +1.0)
-     */
-    fun getPitchNormX(pitch: Int, config: VisualConfig): Float {
+    private data class KeyLayout(val firstPitch: Int, val numKeys: Int, val whitePitches: List<Int>)
+
+    /** Builds the same white-key list/order that [draw] uses, so all geometry stays consistent. */
+    private fun buildKeyLayout(config: VisualConfig): KeyLayout {
         val firstPitch = config.firstKeyPitch
         val numKeys = config.keyCount
-        val norm = (pitch - firstPitch).toFloat() / (numKeys - 1).toFloat()
+        val whitePitches = mutableListOf<Int>()
+        for (p in firstPitch until (firstPitch + numKeys)) {
+            val pc = p % 12
+            if (pc != 1 && pc != 3 && pc != 6 && pc != 8 && pc != 10) {
+                whitePitches.add(p)
+            }
+        }
+        return KeyLayout(firstPitch, numKeys, whitePitches)
+    }
+
+    /** Horizontal center of [pitch], in white-key-width units, matching [draw]'s layout exactly. */
+    private fun whiteUnitXForPitch(pitch: Int, layout: KeyLayout): Float? {
+        val pc = ((pitch % 12) + 12) % 12
+        val isBlack = pc == 1 || pc == 3 || pc == 6 || pc == 8 || pc == 10
+        return if (!isBlack) {
+            val i = layout.whitePitches.indexOf(pitch)
+            if (i < 0) null else i + 0.5f
+        } else {
+            // In draw(), a black key is centered on the boundary right after its preceding white key.
+            val precedingWhite = pitch - 1
+            val i = layout.whitePitches.indexOf(precedingWhite)
+            if (i < 0) null else i + 1f
+        }
+    }
+
+    /**
+     * Maps pitch to normalized X coordinate (-1.0 to +1.0), using real white/black key
+     * geometry (matching [draw]) instead of naive chromatic spacing — this keeps falling
+     * notes aligned with the keys actually drawn on screen.
+     */
+    fun getPitchNormX(pitch: Int, config: VisualConfig): Float {
+        val layout = buildKeyLayout(config)
+        if (layout.whitePitches.isEmpty()) return 0f
+        val whiteUnitX = whiteUnitXForPitch(pitch, layout) ?: (layout.whitePitches.size / 2f)
+        val norm = (whiteUnitX / layout.whitePitches.size.toFloat()).coerceIn(0f, 1f)
         return (norm * 2.0f - 1.0f).coerceIn(-1.0f, 1.0f)
     }
 
     /**
-     * Finds pitch from screen touch X coordinate
+     * Finds the pitch under a screen touch X coordinate. Checks black keys first (they are
+     * drawn on top of white keys with a narrower hit box centered on the white-key boundary,
+     * exactly as [draw] renders them) before falling back to the underlying white key.
      */
     fun getPitchFromTouchX(touchX: Float, width: Float, config: VisualConfig): Int {
-        val norm = (touchX / width).coerceIn(0.0f, 1.0f)
-        val pitch = config.firstKeyPitch + (norm * (config.keyCount - 1)).toInt()
-        return pitch.coerceIn(config.firstKeyPitch, config.firstKeyPitch + config.keyCount - 1)
+        val layout = buildKeyLayout(config)
+        val numWhite = layout.whitePitches.size
+        if (numWhite == 0) return config.firstKeyPitch
+        val whiteKeyWidth = width / numWhite.toFloat()
+        val blackKeyWidth = whiteKeyWidth * 0.62f
+
+        for (i in layout.whitePitches.indices) {
+            val pitch = layout.whitePitches[i]
+            val pc = pitch % 12
+            if (pc == 0 || pc == 2 || pc == 5 || pc == 7 || pc == 9) {
+                val blackPitch = pitch + 1
+                if (blackPitch < layout.firstPitch + layout.numKeys) {
+                    val centerX = (i + 1) * whiteKeyWidth
+                    val left = centerX - blackKeyWidth / 2f
+                    val right = centerX + blackKeyWidth / 2f
+                    if (touchX in left..right) return blackPitch
+                }
+            }
+        }
+
+        val whiteIndex = (touchX / whiteKeyWidth).toInt().coerceIn(0, numWhite - 1)
+        return layout.whitePitches[whiteIndex]
     }
 }

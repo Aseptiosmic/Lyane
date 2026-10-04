@@ -85,6 +85,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     private val _statusMessage = MutableStateFlow<String?>(null)
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
+    // Bumped on every in-place edit to currentSequence (note add/move/resize/delete,
+    // quantize, undo/redo, track mute/solo) so the UI reliably recomposes even though
+    // MidiEditorEngine mutates the MidiSequence object in place (MutableStateFlow would
+    // otherwise conflate the "unchanged" reference and never notify collectors).
+    private val _editVersion = MutableStateFlow(0)
+    val editVersion: StateFlow<Int> = _editVersion.asStateFlow()
+
+    private fun bumpEditVersion() {
+        _editVersion.value = _editVersion.value + 1
+    }
+
     init {
         playbackEngine.addListener(this)
         midiManager.addListener(this)
@@ -176,10 +187,71 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
 
     fun setTempoMultiplier(speed: Float) = playbackEngine.setTempoMultiplier(speed)
 
+    // ---- MIDI Editor operations ----
+    // All editor mutations must go through these wrappers (never call viewModel.editorEngine
+    // directly from UI) so the UI is reliably notified of the in-place edit via bumpEditVersion().
+
+    fun addNote(trackIndex: Int, pitch: Int, startTimeUs: Long, durationUs: Long, velocity: Int = 80) {
+        val seq = _currentSequence.value ?: return
+        editorEngine.addNote(seq, trackIndex, pitch, startTimeUs, durationUs, velocity)
+        bumpEditVersion()
+    }
+
+    fun deleteNote(note: MidiNote) {
+        val seq = _currentSequence.value ?: return
+        editorEngine.deleteNote(seq, note)
+        bumpEditVersion()
+    }
+
+    fun moveNote(note: MidiNote, newPitch: Int, newTimeUs: Long) {
+        val seq = _currentSequence.value ?: return
+        editorEngine.moveNote(seq, note, newPitch, newTimeUs)
+        bumpEditVersion()
+    }
+
+    fun resizeNote(note: MidiNote, newDurationUs: Long) {
+        val seq = _currentSequence.value ?: return
+        editorEngine.resizeNote(seq, note, newDurationUs)
+        bumpEditVersion()
+    }
+
+    fun quantizeTrack(trackIndex: Int) {
+        val seq = _currentSequence.value ?: return
+        editorEngine.quantizeTrack(seq, trackIndex)
+        bumpEditVersion()
+    }
+
+    fun undoEdit() {
+        val seq = _currentSequence.value ?: return
+        if (editorEngine.undo(seq)) bumpEditVersion()
+    }
+
+    fun redoEdit() {
+        val seq = _currentSequence.value ?: return
+        if (editorEngine.redo(seq)) bumpEditVersion()
+    }
+
+    fun toggleTrackMute(trackIndex: Int) {
+        val seq = _currentSequence.value ?: return
+        val track = seq.tracks.getOrNull(trackIndex) ?: return
+        track.isMuted = !track.isMuted
+        bumpEditVersion()
+    }
+
+    fun toggleTrackSolo(trackIndex: Int) {
+        val seq = _currentSequence.value ?: return
+        val track = seq.tracks.getOrNull(trackIndex) ?: return
+        track.isSolo = !track.isSolo
+        bumpEditVersion()
+    }
+
     fun applyPreset(presetId: String) {
         val preset = presetManager.getPresetById(presetId) ?: return
+        val palette = preset.colors.paletteType
         _visualConfig.value = _visualConfig.value.copy(
-            noteStyle = preset.noteStyle
+            noteStyle = preset.noteStyle,
+            paletteType = palette,
+            chromaMap = ChromaColorMap.forPalette(palette, fallback = _visualConfig.value.chromaMap)
         )
         _cameraConfig.value = preset.camera
         _particleConfig.value = preset.particles
@@ -195,7 +267,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application), M
     }
 
     fun setColorPalette(palette: ColorPaletteType) {
-        _visualConfig.value = _visualConfig.value.copy(paletteType = palette)
+        _visualConfig.value = _visualConfig.value.copy(
+            paletteType = palette,
+            chromaMap = ChromaColorMap.forPalette(palette, fallback = _visualConfig.value.chromaMap)
+        )
     }
 
     fun setCameraTilt(tilt: Float) {

@@ -54,6 +54,7 @@ class LyaneSynthesizer(private val context: Context) {
             )
             .setBufferSizeInBytes(bufferSize)
             .setTransferMode(AudioTrack.MODE_STREAM)
+            .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .build()
 
         audioTrack?.play()
@@ -67,6 +68,14 @@ class LyaneSynthesizer(private val context: Context) {
     fun stop() {
         isRunning = false
         renderThread?.interrupt()
+        // Wait for the render loop to actually exit its `while (isRunning)` loop before
+        // touching the AudioTrack — otherwise the render thread can still be mid-way through
+        // audioTrack.write() on another thread when we stop()/release() it here, which can
+        // throw/crash on some devices.
+        try {
+            renderThread?.join(500)
+        } catch (_: InterruptedException) {
+        }
         renderThread = null
 
         audioTrack?.stop()

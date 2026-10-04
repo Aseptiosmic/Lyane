@@ -116,6 +116,35 @@ class MidiParser {
             // Pair NoteOn with NoteOff
             val activeNotes = mutableMapOf<Int, MutableList<RawNoteOn>>()
 
+            // Sustain pedal (CC64) handling: while the pedal is held, a key's note-off does not
+            // actually end the sound — it keeps ringing until the pedal is released. We model
+            // this by deferring the final duration of any note released during a held pedal
+            // until the pedal-up event, extending it to that point.
+            var sustainOn = false
+            val sustainedNotes = mutableListOf<MidiNote>()
+
+            fun finalizeNoteOff(pitch: Int, offTick: Long) {
+                val list = activeNotes[pitch]
+                if (!list.isNullOrEmpty()) {
+                    val on = list.removeAt(0)
+                    val startUs = tickToMicros(on.tick)
+                    val endUs = tickToMicros(offTick)
+                    val durationUs = maxOf(10_000L, endUs - startUs)
+                    val note = MidiNote(
+                        pitch = pitch,
+                        startTimeUs = startUs,
+                        durationUs = durationUs,
+                        velocity = on.velocity,
+                        trackIndex = raw.index,
+                        channel = on.channel
+                    )
+                    midiTrack.notes.add(note)
+                    if (sustainOn) {
+                        sustainedNotes.add(note)
+                    }
+                }
+            }
+
             for (evt in raw.events) {
                 when (evt) {
                     is RawEvent.NoteOn -> {
@@ -123,43 +152,26 @@ class MidiParser {
                             val list = activeNotes.getOrPut(evt.pitch) { mutableListOf() }
                             list.add(RawNoteOn(evt.tick, evt.velocity, evt.channel))
                         } else {
-                            // Velocity 0 is NoteOff
-                            val list = activeNotes[evt.pitch]
-                            if (!list.isNullOrEmpty()) {
-                                val on = list.removeAt(0)
-                                val startUs = tickToMicros(on.tick)
-                                val endUs = tickToMicros(evt.tick)
-                                val durationUs = maxOf(10_000L, endUs - startUs)
-                                midiTrack.notes.add(
-                                    MidiNote(
-                                        pitch = evt.pitch,
-                                        startTimeUs = startUs,
-                                        durationUs = durationUs,
-                                        velocity = on.velocity,
-                                        trackIndex = raw.index,
-                                        channel = on.channel
-                                    )
-                                )
-                            }
+                            // Velocity 0 is a NoteOff
+                            finalizeNoteOff(evt.pitch, evt.tick)
                         }
                     }
                     is RawEvent.NoteOff -> {
-                        val list = activeNotes[evt.pitch]
-                        if (!list.isNullOrEmpty()) {
-                            val on = list.removeAt(0)
-                            val startUs = tickToMicros(on.tick)
-                            val endUs = tickToMicros(evt.tick)
-                            val durationUs = maxOf(10_000L, endUs - startUs)
-                            midiTrack.notes.add(
-                                MidiNote(
-                                    pitch = evt.pitch,
-                                    startTimeUs = startUs,
-                                    durationUs = durationUs,
-                                    velocity = on.velocity,
-                                    trackIndex = raw.index,
-                                    channel = on.channel
-                                )
-                            )
+                        finalizeNoteOff(evt.pitch, evt.tick)
+                    }
+                    is RawEvent.ControlChange -> {
+                        if (evt.controller == 64) { // Sustain pedal
+                            val wasOn = sustainOn
+                            sustainOn = evt.value >= 64
+                            if (wasOn && !sustainOn) {
+                                // Pedal released: extend every note that was held past its
+                                // key-release to actually end now.
+                                val releaseUs = tickToMicros(evt.tick)
+                                for (n in sustainedNotes) {
+                                    n.durationUs = maxOf(n.durationUs, releaseUs - n.startTimeUs)
+                                }
+                                sustainedNotes.clear()
+                            }
                         }
                     }
                 }
@@ -198,29 +210,6 @@ class MidiParser {
     }
 
     private fun parseTrackChunk(trackIndex: Int, data: ByteArray): RawMidiTrack {
-        val stream = ByteArrayInputStream(data)
-        val raw = RawMidiTrack(trackIndex)
-        var currentTick = 0L
-        var runningStatus = 0
-
-        while (stream.available() > 0) {
-            val delta = readVarLen(stream)
-            currentTick += delta
-
-            var status = stream.read()
-            if (status < 0) break
-
-            if (status < 0x80) {
-                // Running status
-                stream.reset()
-                // Wait, ByteArrayInputStream doesn't mark by default, so we rewind 1 byte:
-                // Better approach: handle running status with stream position or peek
-                // We will implement position tracking safely
-            }
-            // Handled in safe buffer parser below
-        }
-
-        // Use safe byte array parser
         return parseTrackChunkSafe(trackIndex, data)
     }
 
@@ -273,7 +262,7 @@ class MidiParser {
                     if (pos + 1 < data.size) {
                         val ccNum = data[pos++].toInt() and 0x7F
                         val ccVal = data[pos++].toInt() and 0x7F
-                        // CC 64 = Sustain pedal
+                        raw.events.add(RawEvent.ControlChange(currentTick, ccNum, ccVal, channel))
                     }
                 }
                 0xC0 -> { // Program Change
@@ -334,19 +323,6 @@ class MidiParser {
         return Pair(value, count)
     }
 
-    private fun readVarLen(stream: InputStream): Long {
-        var value = 0L
-        var count = 0
-        while (count < 4) {
-            val b = stream.read()
-            if (b < 0) break
-            count++
-            value = (value shl 7) or ((b and 0x7F).toLong())
-            if ((b and 0x80) == 0) break
-        }
-        return value
-    }
-
     private fun readString(buffer: ByteBuffer, length: Int): String {
         val bytes = ByteArray(length)
         buffer.get(bytes)
@@ -358,6 +334,7 @@ class MidiParser {
     private sealed class RawEvent {
         data class NoteOn(val tick: Long, val pitch: Int, val velocity: Int, val channel: Int) : RawEvent()
         data class NoteOff(val tick: Long, val pitch: Int, val velocity: Int, val channel: Int) : RawEvent()
+        data class ControlChange(val tick: Long, val controller: Int, val value: Int, val channel: Int) : RawEvent()
     }
 
     private class RawMidiTrack(val index: Int) {

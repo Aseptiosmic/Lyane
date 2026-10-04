@@ -57,6 +57,53 @@ data class ChromaColorMap(
             else -> c
         }
     }
+
+    companion object {
+        /**
+         * Returns a distinct 12-pitch-class color map for each visual theme.
+         * CUSTOM passes through [fallback] (the user's own/current map) unchanged.
+         */
+        fun forPalette(type: ColorPaletteType, fallback: ChromaColorMap = ChromaColorMap()): ChromaColorMap {
+            return when (type) {
+                ColorPaletteType.AURORA -> ChromaColorMap(
+                    c = "#00F5A0", cs = "#00E0B8", d = "#00C9D0", ds = "#00AEE8",
+                    e = "#2E96FF", f = "#6FDC8C", fs = "#36D399", g = "#17E6B4",
+                    gs = "#00D6C8", a = "#00BBE0", asharp = "#3AA0FF", b = "#7CFFCB"
+                )
+                ColorPaletteType.MOONLIGHT -> ChromaColorMap(
+                    c = "#8FD3FF", cs = "#7CC2FF", d = "#6AB0FF", ds = "#5A9EFF",
+                    e = "#4D8CFA", f = "#9FE3FF", fs = "#89D6FF", g = "#73C8FF",
+                    gs = "#B9ECFF", a = "#A3DFFF", asharp = "#5E7FE0", b = "#C9D8FF"
+                )
+                ColorPaletteType.NEON -> ChromaColorMap(
+                    c = "#FF00E5", cs = "#FF2BD6", d = "#FF00A8", ds = "#F500FF",
+                    e = "#B400FF", f = "#00FFF0", fs = "#00E5FF", g = "#00B8FF",
+                    gs = "#2BFFEF", a = "#FFEA00", asharp = "#FF9900", b = "#FF2E63"
+                )
+                ColorPaletteType.OCEAN -> ChromaColorMap(
+                    c = "#00B4D8", cs = "#0096C7", d = "#0077B6", ds = "#023E8A",
+                    e = "#48CAE4", f = "#90E0EF", fs = "#ADE8F4", g = "#00F5D4",
+                    gs = "#00C2A8", a = "#007F7A", asharp = "#4EA8DE", b = "#CAF0F8"
+                )
+                ColorPaletteType.SUNSET -> ChromaColorMap(
+                    c = "#FF6B35", cs = "#FF8C42", d = "#FFA552", ds = "#FFC93C",
+                    e = "#FFD23F", f = "#FF5D73", fs = "#F72C5B", g = "#C81D6C",
+                    gs = "#FF9E7D", a = "#FFB38A", asharp = "#E8590C", b = "#FF4D4D"
+                )
+                ColorPaletteType.GALAXY -> ChromaColorMap(
+                    c = "#B983FF", cs = "#9D65FF", d = "#7B4DFF", ds = "#5A3FE0",
+                    e = "#3F2CB3", f = "#D291FF", fs = "#E6A8FF", g = "#8862F0",
+                    gs = "#5E3BE8", a = "#C06CFF", asharp = "#4527A0", b = "#F0C3FF"
+                )
+                ColorPaletteType.MONOCHROME -> ChromaColorMap(
+                    c = "#FFFFFF", cs = "#ECECEC", d = "#D9D9D9", ds = "#C6C6C6",
+                    e = "#B3B3B3", f = "#F5F5F5", fs = "#E0E0E0", g = "#CCCCCC",
+                    gs = "#A6A6A6", a = "#999999", asharp = "#8C8C8C", b = "#D4D4D4"
+                )
+                ColorPaletteType.CUSTOM -> fallback
+            }
+        }
+    }
 }
 
 data class VisualConfig(

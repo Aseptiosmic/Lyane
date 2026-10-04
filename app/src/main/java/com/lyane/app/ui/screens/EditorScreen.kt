@@ -25,6 +25,9 @@ fun EditorScreen(
     val sequence by viewModel.currentSequence.collectAsState()
     val positionUs by viewModel.positionUs.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    // Collected (but not read directly) purely to force recomposition whenever the editor
+    // engine mutates the sequence in place — see MainViewModel.bumpEditVersion().
+    val editVersion by viewModel.editVersion.collectAsState()
 
     var selectedTrackIndex by remember { mutableStateOf(0) }
     var selectedNote by remember { mutableStateOf<MidiNote?>(null) }
@@ -57,10 +60,7 @@ fun EditorScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
-                        val seq = sequence
-                        if (seq != null) {
-                            viewModel.editorEngine.quantizeTrack(seq, selectedTrackIndex)
-                        }
+                        viewModel.quantizeTrack(selectedTrackIndex)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LyaneCardSurface, contentColor = LyaneCyan),
                     shape = RoundedCornerShape(8.dp)
@@ -72,8 +72,7 @@ fun EditorScreen(
 
                 IconButton(
                     onClick = {
-                        val seq = sequence
-                        if (seq != null) viewModel.editorEngine.undo(seq)
+                        viewModel.undoEdit()
                     }
                 ) {
                     Icon(Icons.Default.Undo, contentDescription = "Undo", tint = TextSecondary)
@@ -89,18 +88,13 @@ fun EditorScreen(
                 trackIndex = selectedTrackIndex,
                 onNoteSelected = { selectedNote = it },
                 onNoteMoved = { note, newPitch, newTime ->
-                    val seq = sequence
-                    if (seq != null) viewModel.editorEngine.moveNote(seq, note, newPitch, newTime)
+                    viewModel.moveNote(note, newPitch, newTime)
                 },
                 onNoteResized = { note, newDur ->
-                    val seq = sequence
-                    if (seq != null) viewModel.editorEngine.resizeNote(seq, note, newDur)
+                    viewModel.resizeNote(note, newDur)
                 },
                 onAddNote = { pitch, time ->
-                    val seq = sequence
-                    if (seq != null) {
-                        viewModel.editorEngine.addNote(seq, selectedTrackIndex, pitch, time, 500_000L)
-                    }
+                    viewModel.addNote(selectedTrackIndex, pitch, time, 500_000L)
                 },
                 modifier = Modifier.fillMaxSize()
             )
@@ -127,10 +121,9 @@ fun EditorScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
-                                val seq = sequence
                                 val n = selectedNote
-                                if (seq != null && n != null) {
-                                    viewModel.editorEngine.deleteNote(seq, n)
+                                if (n != null) {
+                                    viewModel.deleteNote(n)
                                     selectedNote = null
                                 }
                             },

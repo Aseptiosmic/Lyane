@@ -40,11 +40,26 @@ fun LyanePianoRoll(
 
     var selectedNote by remember { mutableStateOf<MidiNote?>(null) }
 
+    // Drag state for move/resize gestures
+    var dragNote by remember { mutableStateOf<MidiNote?>(null) }
+    var dragIsResize by remember { mutableStateOf(false) }
+    var dragStartPitch by remember { mutableStateOf(0) }
+    var dragStartTimeUs by remember { mutableStateOf(0L) }
+    var dragStartDurationUs by remember { mutableStateOf(0L) }
+    var dragAccumDx by remember { mutableStateOf(0f) }
+    var dragAccumDy by remember { mutableStateOf(0f) }
+    // Live preview values shown only while actively dragging — the real MidiNote is left
+    // untouched until onDragEnd, so the editor engine's undo/redo correctly captures the
+    // true pre-drag state (mutating the note live during drag would make "old == new").
+    var previewPitch by remember { mutableStateOf(0) }
+    var previewTimeUs by remember { mutableStateOf(0L) }
+    var previewDurationUs by remember { mutableStateOf(0L) }
+
     Box(modifier = modifier.background(LyaneBlack)) {
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
+                .pointerInput(notes, totalDurationUs) {
                     detectTapGestures { offset ->
                         val w = size.width
                         val h = size.height
@@ -68,6 +83,81 @@ fun LyanePianoRoll(
                             onAddNote(clickedPitch, clickedTimeUs)
                         }
                     }
+                }
+                .pointerInput(notes, totalDurationUs) {
+                    // Drag to move a note (vertical = pitch, horizontal = time), or
+                    // drag near its right edge to resize its duration.
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val w = size.width
+                            val h = size.height
+                            val pitchHeight = h / totalPitches
+                            val timePerPixel = totalDurationUs / w
+
+                            val touchedPitch = maxPitch - (offset.y / pitchHeight).toInt()
+                            val touchedTimeUs = (offset.x * timePerPixel).toLong()
+
+                            val hit = notes.find {
+                                it.pitch == touchedPitch && touchedTimeUs in it.startTimeUs..it.endTimeUs
+                            }
+
+                            if (hit != null) {
+                                val noteEndX = hit.endTimeUs / timePerPixel
+                                val resizeHandleWidthPx = 24f
+                                dragIsResize = (noteEndX - offset.x) <= resizeHandleWidthPx
+
+                                dragNote = hit
+                                dragStartPitch = hit.pitch
+                                dragStartTimeUs = hit.startTimeUs
+                                dragStartDurationUs = hit.durationUs
+                                previewPitch = hit.pitch
+                                previewTimeUs = hit.startTimeUs
+                                previewDurationUs = hit.durationUs
+                                dragAccumDx = 0f
+                                dragAccumDy = 0f
+                                selectedNote = hit
+                                onNoteSelected(hit)
+                            } else {
+                                dragNote = null
+                            }
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (dragNote == null) return@detectDragGestures
+                            change.consume()
+
+                            val w = size.width
+                            val h = size.height
+                            val pitchHeight = h / totalPitches
+                            val timePerPixel = totalDurationUs / w
+
+                            dragAccumDx += dragAmount.x
+                            dragAccumDy += dragAmount.y
+
+                            if (dragIsResize) {
+                                val deltaDurationUs = (dragAccumDx * timePerPixel).toLong()
+                                previewDurationUs = maxOf(20_000L, dragStartDurationUs + deltaDurationUs)
+                            } else {
+                                val deltaPitch = -(dragAccumDy / pitchHeight).toInt()
+                                val deltaTimeUs = (dragAccumDx * timePerPixel).toLong()
+                                previewPitch = (dragStartPitch + deltaPitch).coerceIn(minPitch, maxPitch)
+                                previewTimeUs = maxOf(0L, dragStartTimeUs + deltaTimeUs)
+                            }
+                        },
+                        onDragEnd = {
+                            val note = dragNote
+                            if (note != null) {
+                                if (dragIsResize) {
+                                    onNoteResized(note, previewDurationUs)
+                                } else {
+                                    onNoteMoved(note, previewPitch, previewTimeUs)
+                                }
+                            }
+                            dragNote = null
+                        },
+                        onDragCancel = {
+                            dragNote = null
+                        }
+                    )
                 }
         ) {
             val w = size.width
@@ -108,11 +198,16 @@ fun LyanePianoRoll(
 
             // 3. Draw Notes
             for (note in notes) {
-                val noteX = (note.startTimeUs / timePerPixel).toFloat()
-                val noteW = maxOf(4f, (note.durationUs / timePerPixel).toFloat())
-                val noteY = (maxPitch - note.pitch) * pitchHeight
+                val isDragging = (note === dragNote)
+                val drawStartUs = if (isDragging) previewTimeUs else note.startTimeUs
+                val drawDurationUs = if (isDragging) previewDurationUs else note.durationUs
+                val drawPitch = if (isDragging) previewPitch else note.pitch
 
-                val isSel = (note == selectedNote)
+                val noteX = (drawStartUs / timePerPixel).toFloat()
+                val noteW = maxOf(4f, (drawDurationUs / timePerPixel).toFloat())
+                val noteY = (maxPitch - drawPitch) * pitchHeight
+
+                val isSel = (note == selectedNote) || isDragging
                 val baseColor = if (isSel) LyaneMagenta else LyaneCyan
 
                 // Note rectangle
