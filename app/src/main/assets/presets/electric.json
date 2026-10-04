@@ -1,0 +1,33 @@
+{
+  "id": "preset_electric",
+  "name": "Electric Arc",
+  "description": "High-voltage lightning discharges crackling across active chords.",
+  "noteStyle": "ENERGY",
+  "camera": {
+    "tiltAngle": 52.0,
+    "fov": 62.0,
+    "zoom": 0.98,
+    "panY": -0.2,
+    "autoCamera": true
+  },
+  "particles": {
+    "enabled": true,
+    "count": 160,
+    "speed": 2.8,
+    "lifetime": 1.0,
+    "gravity": 0.15,
+    "glow": 1.8,
+    "turbulence": 1.2
+  },
+  "lighting": {
+    "ambientColor": "#030814",
+    "bloomIntensity": 2.0,
+    "noteGlow": 2.2,
+    "spotlightIntensity": 1.5
+  },
+  "colors": {
+    "palette": "NEON",
+    "glowIntensity": 2.0,
+    "gradientSpeed": 2.0
+  }
+}

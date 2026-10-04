@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lyane</string>
+    <string name="app_tagline">Piano MIDI Visualizer &amp; Video Studio</string>
+    <string name="brand_desc">Professional Piano MIDI Visualizer, Real-time 3D Engine &amp; Cinematic Video Creator</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_editor">Editor</string>
+    <string name="nav_timeline">Timeline</string>
+    <string name="nav_presets">Presets</string>
+    <string name="nav_export">Export</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Actions -->
+    <string name="action_new_project">New Project</string>
+    <string name="action_import_midi">Import MIDI</string>
+    <string name="action_import_musicxml">Import MusicXML</string>
+    <string name="action_connect_midi">Connect MIDI</string>
+    <string name="action_live_piano">Live Piano Mode</string>
+    <string name="action_recent_projects">Recent Projects</string>
+    <string name="action_preset_library">Preset Library</string>
+    <string name="action_export_video">Export Video</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_stop">Stop</string>
+    <string name="action_loop">Loop</string>
+    <string name="action_quantize">Quantize</string>
+
+    <!-- Engine Settings -->
+    <string name="style_classic">Classic</string>
+    <string name="style_neon">Neon</string>
+    <string name="style_glass">Glass</string>
+    <string name="style_crystal">Crystal</string>
+    <string name="style_gem">Gem</string>
+    <string name="style_particle">Particle</string>
+    <string name="style_energy">Energy</string>
+    <string name="style_wave">Wave</string>
+    <string name="style_minimal">Minimal</string>
+    <string name="style_cosmic">Cosmic</string>
+
+    <!-- Export Settings -->
+    <string name="ratio_16_9">16:9 YouTube</string>
+    <string name="ratio_9_16">9:16 Shorts/TikTok</string>
+    <string name="ratio_1_1">1:1 Square</string>
+    <string name="ratio_custom">Custom</string>
+    <string name="res_720p">720p HD</string>
+    <string name="res_1080p">1080p Full HD</string>
+    <string name="res_1440p">1440p 2K</string>
+    <string name="res_4k">4K Ultra HD</string>
+    <string name="fps_24">24 FPS</string>
+    <string name="fps_30">30 FPS</string>
+    <string name="fps_60">60 FPS</string>
+
+    <!-- Messages -->
+    <string name="midi_connected">MIDI Device Connected</string>
+    <string name="midi_disconnected">MIDI Device Disconnected</string>
+    <string name="no_device_found">No MIDI devices detected</string>
+    <string name="export_success">Video exported successfully!</string>
+    <string name="exporting_progress">Rendering video: %1$d%%</string>
+</resources>

@@ -1,0 +1,33 @@
+{
+  "id": "preset_crystal",
+  "name": "Crystal Gem",
+  "description": "Faceted prismatic gemstones radiating specular sparkles and caustics.",
+  "noteStyle": "CRYSTAL",
+  "camera": {
+    "tiltAngle": 40.0,
+    "fov": 52.0,
+    "zoom": 1.05,
+    "panY": -0.12,
+    "autoCamera": false
+  },
+  "particles": {
+    "enabled": true,
+    "count": 60,
+    "speed": 1.0,
+    "lifetime": 1.6,
+    "gravity": 0.0,
+    "glow": 0.8,
+    "turbulence": 0.2
+  },
+  "lighting": {
+    "ambientColor": "#0A0E1A",
+    "bloomIntensity": 1.2,
+    "noteGlow": 1.2,
+    "spotlightIntensity": 1.0
+  },
+  "colors": {
+    "palette": "OCEAN",
+    "glowIntensity": 1.2,
+    "gradientSpeed": 0.4
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "preset_cosmic",
+  "name": "Cosmic Stardust",
+  "description": "Deep nebula void with supernova particle bursts and floating meteors.",
+  "noteStyle": "COSMIC",
+  "camera": {
+    "tiltAngle": 50.0,
+    "fov": 58.0,
+    "zoom": 1.0,
+    "panY": -0.18,
+    "autoCamera": true
+  },
+  "particles": {
+    "enabled": true,
+    "count": 200,
+    "speed": 2.5,
+    "lifetime": 2.5,
+    "gravity": 0.02,
+    "glow": 1.4,
+    "turbulence": 0.9
+  },
+  "lighting": {
+    "ambientColor": "#05020A",
+    "bloomIntensity": 1.7,
+    "noteGlow": 1.7,
+    "spotlightIntensity": 1.2
+  },
+  "colors": {
+    "palette": "GALAXY",
+    "glowIntensity": 1.5,
+    "gradientSpeed": 0.8
+  }
+}
