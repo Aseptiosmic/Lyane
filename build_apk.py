@@ -1,4 +1,22 @@
 #!/usr/bin/env python3
+# ============================================================================
+# DEPRECATED / DO NOT USE FOR DISTRIBUTION
+# ----------------------------------------------------------------------------
+# This script hand-crafts a ZIP file that merely has the *shape* of an APK
+# (a manifest, a tiny stub classes.dex, a placeholder resources.arsc and a
+# fake self-signed certificate). The stub classes.dex contains no real
+# compiled bytecode for the app's Kotlin/Java sources, so an APK produced by
+# this script will fail to install or will crash immediately on a device —
+# it is NOT a working Android application.
+#
+# The real, installable Lyane.apk is now built from the actual Gradle
+# project (app/) by the "Build and Release Real APK" GitHub Actions
+# workflow (.github/workflows/build-apk.yml), which runs a genuine
+# `gradle assembleRelease` with the Android Gradle Plugin and publishes the
+# signed, compiled APK to the project's GitHub Releases page. Use that
+# workflow (or run `./gradlew assembleRelease` yourself with a proper
+# Android SDK/JDK setup) to produce a real APK.
+# ============================================================================
 import os
 import struct
 import zlib

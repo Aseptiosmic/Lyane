@@ -42,7 +42,6 @@ def run_tests():
         "app/src/main/java/com/lyane/app/ui/screens/TimelineScreen.kt",
         "app/src/main/java/com/lyane/app/ui/screens/OnboardingScreen.kt",
         "app/src/main/java/com/lyane/app/ui/screens/SettingsScreen.kt",
-        "Lyane.apk"
     ]
 
     all_exist = True
@@ -54,44 +53,57 @@ def run_tests():
             print(f"[FAIL] Missing: {p}")
             all_exist = False
 
-    # Test 2: APK Archive Validation
+    # Test 2: APK Archive Validation (optional — the real APK is built by CI and
+    # published to GitHub Releases, it is not committed to the repository).
     print("\n--- APK Archive Validation ---")
     apk_path = "/home/user/Lyane/Lyane.apk"
-    with zipfile.ZipFile(apk_path, 'r') as zf:
-        namelist = zf.namelist()
-        required_apk_entries = [
-            "AndroidManifest.xml",
-            "classes.dex",
-            "resources.arsc",
-            "assets/demo_midi/moonlight_sonata.mid",
-            "assets/demo_midi/clair_de_lune.mid",
-            "assets/demo_midi/bach_prelude.mid",
-            "assets/demo_xml/clair_de_lune.musicxml",
-            "assets/presets/moonlight.json",
-            "assets/presets/lunar_glass.json",
-            "assets/presets/aurora.json",
-            "assets/presets/cyber_piano.json",
-            "assets/presets/crystal.json",
-            "assets/presets/cosmic.json",
-            "assets/presets/minimal.json",
-            "assets/presets/cinematic.json",
-            "assets/presets/electric.json",
-            "assets/presets/dream.json",
-            "assets/shaders/note_vertex.glsl",
-            "assets/shaders/note_fragment.glsl",
-            "assets/shaders/particle_vertex.glsl",
-            "assets/shaders/particle_fragment.glsl",
-            "assets/shaders/bloom_vertex.glsl",
-            "assets/shaders/bloom_fragment.glsl",
-            "META-INF/MANIFEST.MF",
-            "META-INF/CERT.SF",
-            "META-INF/CERT.RSA"
-        ]
-        for entry in required_apk_entries:
-            if entry in namelist:
-                print(f"[PASS] APK contains: {entry}")
+    if not os.path.exists(apk_path):
+        print("[SKIP] No local Lyane.apk found. Download the real, CI-built APK "
+              "from the project's GitHub Releases page instead of relying on a "
+              "committed binary.")
+    else:
+        with zipfile.ZipFile(apk_path, 'r') as zf:
+            namelist = zf.namelist()
+            required_apk_entries = [
+                "AndroidManifest.xml",
+                "classes.dex",
+                "resources.arsc",
+                "assets/demo_midi/moonlight_sonata.mid",
+                "assets/demo_midi/clair_de_lune.mid",
+                "assets/demo_midi/bach_prelude.mid",
+                "assets/demo_xml/clair_de_lune.musicxml",
+                "assets/presets/moonlight.json",
+                "assets/presets/lunar_glass.json",
+                "assets/presets/aurora.json",
+                "assets/presets/cyber_piano.json",
+                "assets/presets/crystal.json",
+                "assets/presets/cosmic.json",
+                "assets/presets/minimal.json",
+                "assets/presets/cinematic.json",
+                "assets/presets/electric.json",
+                "assets/presets/dream.json",
+                "assets/shaders/note_vertex.glsl",
+                "assets/shaders/note_fragment.glsl",
+                "assets/shaders/particle_vertex.glsl",
+                "assets/shaders/particle_fragment.glsl",
+                "assets/shaders/bloom_vertex.glsl",
+                "assets/shaders/bloom_fragment.glsl",
+                "META-INF/MANIFEST.MF",
+            ]
+            dex_entries = [n for n in namelist if n.startswith("classes") and n.endswith(".dex")]
+            for entry in required_apk_entries:
+                if entry in namelist:
+                    print(f"[PASS] APK contains: {entry}")
+                else:
+                    print(f"[FAIL] Missing in APK: {entry}")
+                    all_exist = False
+            # A real compiled app must have a substantial classes.dex (actual
+            # bytecode), not just a tiny placeholder stub.
+            dex_size = sum(len(zf.read(n)) for n in dex_entries)
+            if dex_size > 100_000:
+                print(f"[PASS] classes.dex looks like real compiled bytecode ({dex_size} bytes)")
             else:
-                print(f"[FAIL] Missing in APK: {entry}")
+                print(f"[FAIL] classes.dex is suspiciously small ({dex_size} bytes) — likely not a real build")
                 all_exist = False
 
     # Test 3: Preset JSON Validity

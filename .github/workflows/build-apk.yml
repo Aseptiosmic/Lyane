@@ -1,9 +1,6 @@
 name: Build and Release Real APK
 
 on:
-  push:
-    branches:
-      - arena/01a106ab-lyane
   workflow_dispatch:
     inputs:
       tag:

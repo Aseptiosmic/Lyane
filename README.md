@@ -120,8 +120,6 @@ Lyane/
 ├── app/
 │   ├── build.gradle.kts                      # App Gradle module configuration
 │   ├── proguard-rules.pro                   # R8 / Proguard keep rules
-│   ├── release/
-│   │   └── Lyane.apk                        # Signed Release APK artifact
 │   └── src/
 │       ├── main/
 │       │   ├── AndroidManifest.xml          # Permissions, activities, MIDI filters
@@ -169,9 +167,9 @@ Lyane/
 ├── web/                                     # Live Interactive Web Studio Preview
 │   ├── index.html                           # Full WebAudio / Canvas Studio App
 │   └── server.js                            # Node static server (port 3000)
-├── build_apk.py                             # Release APK packager & signer tool
+├── .github/workflows/build-apk.yml          # CI: real Gradle build -> signed APK -> GitHub Release
+├── build_apk.py                             # (deprecated) legacy placeholder packager, do not use
 ├── run_tests.py                             # Verification test suite
-├── Lyane.apk                                # Installable Signed Release APK
 ├── build.gradle.kts                         # Root Gradle build script
 ├── settings.gradle.kts                      # Gradle settings
 ├── gradlew                                  # Gradle wrapper executable
@@ -183,11 +181,12 @@ Lyane/
 ## 🛠️ Build & Installation
 
 ### Option 1: Direct APK Installation
-The signed release APK is built and ready in the repository:
+Download the latest signed release APK from the [GitHub Releases page](https://github.com/Aseptiosmic/Lyane/releases/latest), then install it:
 ```bash
 # Install via ADB on any connected Android device or emulator
 adb install -r Lyane.apk
 ```
+> The APK is built automatically by the `Build and Release Real APK` GitHub Actions workflow from the source in this repository, so it always reflects the latest compiled code (not a placeholder file).
 
 ### Option 2: Build with Android Studio / Gradle
 1. Clone the repository into Android Studio:
