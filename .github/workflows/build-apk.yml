@@ -1,6 +1,9 @@
 name: Build and Release Real APK
 
 on:
+  push:
+    branches:
+      - arena/01a106ab-lyane
   workflow_dispatch:
     inputs:
       tag:
@@ -44,7 +47,9 @@ jobs:
             -dname "CN=Lyane, OU=Lyane, O=Lyane, L=Istanbul, S=Istanbul, C=TR"
 
       - name: Build APK
-        run: gradle ${{ github.event.inputs.build_type }} --no-daemon --stacktrace
+        env:
+          BUILD_TYPE: ${{ github.event.inputs.build_type || 'assembleRelease' }}
+        run: gradle "$BUILD_TYPE" --no-daemon --stacktrace
 
       - name: Locate APK
         id: find_apk
@@ -64,7 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.inputs.tag }}"
+          TAG="${{ github.event.inputs.tag || 'v1.0.0' }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "Lyane.apk" --clobber
           else
