@@ -94,6 +94,30 @@ jobs:
           cp "$APK_PATH" Lyane.apk
           echo "apk_path=Lyane.apk" >> "$GITHUB_OUTPUT"
 
+      - name: Verify APK integrity and signature
+        id: verify
+        run: |
+          set -o pipefail
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)
+          {
+            echo "## Zip integrity"
+            python3 -c "import zipfile; z=zipfile.ZipFile('Lyane.apk'); print('bad entry:', z.testzip()); print('entries:', len(z.namelist())); d=z.read('classes.dex'); print('classes.dex bytes:', len(d))"
+            echo ""
+            echo "## apksigner verify"
+            "${BUILD_TOOLS}apksigner" verify --verbose --print-certs Lyane.apk || echo "APKSIGNER_FAILED"
+            echo ""
+            echo "## aapt dump badging (first 30 lines)"
+            "${BUILD_TOOLS}aapt" dump badging Lyane.apk 2>&1 | head -30 || echo "AAPT_FAILED"
+          } > verify.log 2>&1 || true
+          cat verify.log
+
+      - name: Post verification report
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create --title "APK verification: run ${{ github.run_id }}" --body-file verify.log
+
       - name: Upload APK as workflow artifact
         uses: actions/upload-artifact@v4
         with:
