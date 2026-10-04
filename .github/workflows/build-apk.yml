@@ -17,6 +17,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   build:
@@ -47,9 +48,23 @@ jobs:
             -dname "CN=Lyane, OU=Lyane, O=Lyane, L=Istanbul, S=Istanbul, C=TR"
 
       - name: Build APK
+        id: build
+        continue-on-error: true
         env:
           BUILD_TYPE: ${{ github.event.inputs.build_type || 'assembleRelease' }}
-        run: gradle "$BUILD_TYPE" --no-daemon --stacktrace
+        run: gradle "$BUILD_TYPE" --no-daemon --stacktrace 2>&1 | tee build.log
+
+      - name: Post build log on failure
+        if: steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tail -c 60000 build.log > tail.log
+          gh issue create --title "Build failed: run ${{ github.run_id }}" --body-file tail.log
+
+      - name: Fail job if build failed
+        if: steps.build.outcome == 'failure'
+        run: exit 1
 
       - name: Locate APK
         id: find_apk
