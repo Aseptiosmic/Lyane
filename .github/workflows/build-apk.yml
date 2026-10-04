@@ -1,0 +1,72 @@
+name: Build and Release Real APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the built APK to (created if missing)"
+        required: true
+        default: "v1.0.0"
+      build_type:
+        description: "assembleDebug or assembleRelease"
+        required: true
+        default: "assembleRelease"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.5"
+
+      - name: Generate release keystore (self-signed, matches build.gradle.kts config)
+        run: |
+          keytool -genkeypair -v \
+            -keystore lyane-release.keystore \
+            -alias lyane_key \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass lyane_keystore_pass \
+            -keypass lyane_keystore_pass \
+            -dname "CN=Lyane, OU=Lyane, O=Lyane, L=Istanbul, S=Istanbul, C=TR"
+
+      - name: Build APK
+        run: gradle ${{ github.event.inputs.build_type }} --no-daemon --stacktrace
+
+      - name: Locate APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -1)
+          echo "Found APK: $APK_PATH"
+          cp "$APK_PATH" Lyane.apk
+          echo "apk_path=Lyane.apk" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lyane-apk
+          path: Lyane.apk
+
+      - name: Upload/replace APK on release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "Lyane.apk" --clobber
+          else
+            gh release create "$TAG" "Lyane.apk" --title "Lyane $TAG" --notes "Automated real Gradle build."
+          fi
