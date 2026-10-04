@@ -138,7 +138,7 @@ class MidiEditorEngine {
                 cmd.note.durationUs = cmd.newDurationUs
             }
             is EditorCommand.ChangeVelocity -> {
-                cmd.note.velocity = cmd.newDurationUs.toInt()
+                cmd.note.velocity = cmd.newVel
             }
         }
         return true
