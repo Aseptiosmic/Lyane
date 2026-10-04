@@ -61,8 +61,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          tail -c 60000 build.log > tail.log
-          gh issue create --title "Build failed: run ${{ github.run_id }}" --body-file tail.log
+          {
+            echo "## Kotlin/compiler errors (grep)"
+            echo '```'
+            grep -E "^e: |error:|: error " build.log | head -c 40000
+            echo '```'
+            echo "## Tail of log"
+            echo '```'
+            tail -c 20000 build.log
+            echo '```'
+          } > issue_body.md
+          gh issue create --title "Build failed: run ${{ github.run_id }}" --body-file issue_body.md
 
       - name: Fail job if build failed
         if: steps.build.outcome == 'failure'
