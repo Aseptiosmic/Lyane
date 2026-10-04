@@ -52,7 +52,9 @@ jobs:
         continue-on-error: true
         env:
           BUILD_TYPE: ${{ github.event.inputs.build_type || 'assembleRelease' }}
-        run: gradle "$BUILD_TYPE" --no-daemon --stacktrace 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          gradle "$BUILD_TYPE" --no-daemon --stacktrace 2>&1 | tee build.log
 
       - name: Post build log on failure
         if: steps.build.outcome == 'failure'
@@ -66,10 +68,19 @@ jobs:
         if: steps.build.outcome == 'failure'
         run: exit 1
 
+      - name: Debug outputs tree
+        if: always()
+        run: find app/build -maxdepth 6 -type d 2>&1 | sort; echo "---apk search---"; find app/build -iname "*.apk" 2>&1
+
       - name: Locate APK
         id: find_apk
         run: |
-          APK_PATH=$(find app/build/outputs/apk -name "*.apk" | head -1)
+          set -e
+          APK_PATH=$(find app/build/outputs -iname "*.apk" | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No APK found!" >&2
+            exit 1
+          fi
           echo "Found APK: $APK_PATH"
           cp "$APK_PATH" Lyane.apk
           echo "apk_path=Lyane.apk" >> "$GITHUB_OUTPUT"
