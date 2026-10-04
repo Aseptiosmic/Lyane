@@ -1,0 +1,33 @@
+{
+  "id": "preset_moonlight",
+  "name": "Moonlight",
+  "description": "Mysterious deep indigo night with glowing lunar cyan falling beams.",
+  "noteStyle": "NEON",
+  "camera": {
+    "tiltAngle": 48.0,
+    "fov": 55.0,
+    "zoom": 1.0,
+    "panY": -0.15,
+    "autoCamera": true
+  },
+  "particles": {
+    "enabled": true,
+    "count": 80,
+    "speed": 1.2,
+    "lifetime": 1.5,
+    "gravity": 0.05,
+    "glow": 0.9,
+    "turbulence": 0.3
+  },
+  "lighting": {
+    "ambientColor": "#07080D",
+    "bloomIntensity": 1.4,
+    "noteGlow": 1.5,
+    "spotlightIntensity": 0.8
+  },
+  "colors": {
+    "palette": "MOONLIGHT",
+    "glowIntensity": 1.3,
+    "gradientSpeed": 0.5
+  }
+}

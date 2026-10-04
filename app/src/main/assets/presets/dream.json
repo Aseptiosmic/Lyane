@@ -1,0 +1,33 @@
+{
+  "id": "preset_dream",
+  "name": "Dream Cloud",
+  "description": "Soft pastel watercolor waves drifting gently into celestial twilight.",
+  "noteStyle": "WAVE",
+  "camera": {
+    "tiltAngle": 38.0,
+    "fov": 50.0,
+    "zoom": 1.05,
+    "panY": -0.12,
+    "autoCamera": false
+  },
+  "particles": {
+    "enabled": true,
+    "count": 75,
+    "speed": 0.9,
+    "lifetime": 2.4,
+    "gravity": -0.08,
+    "glow": 0.8,
+    "turbulence": 0.3
+  },
+  "lighting": {
+    "ambientColor": "#0B0914",
+    "bloomIntensity": 1.2,
+    "noteGlow": 1.1,
+    "spotlightIntensity": 0.7
+  },
+  "colors": {
+    "palette": "AURORA",
+    "glowIntensity": 1.1,
+    "gradientSpeed": 0.4
+  }
+}
