@@ -1,0 +1,29 @@
+name: Upload Release Asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the APK to"
+        required: true
+        default: "v1.0.0"
+      asset_path:
+        description: "Path to the APK file in the repo"
+        required: true
+        default: "Lyane.apk"
+
+permissions:
+  contents: write
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload asset to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.inputs.tag }}" "${{ github.event.inputs.asset_path }}" --clobber
