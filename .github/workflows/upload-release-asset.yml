@@ -1,6 +1,9 @@
 name: Upload Release Asset
 
 on:
+  push:
+    branches:
+      - arena/01a106ab-lyane
   workflow_dispatch:
     inputs:
       tag:
@@ -25,5 +28,7 @@ jobs:
       - name: Upload asset to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.inputs.tag || 'v1.0.0' }}
+          ASSET_PATH: ${{ github.event.inputs.asset_path || 'Lyane.apk' }}
         run: |
-          gh release upload "${{ github.event.inputs.tag }}" "${{ github.event.inputs.asset_path }}" --clobber
+          gh release upload "$TAG" "$ASSET_PATH" --clobber
